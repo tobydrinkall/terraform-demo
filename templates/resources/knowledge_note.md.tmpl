@@ -1,0 +1,52 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: "Knowledge"
+description: |-
+  {{ .Description | plainmarkdown | trimspace }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+Knowledge notes are the primary mechanism for teaching Devin about your organization's practices without repeating yourself in every prompt.
+
+## When to Use This Resource
+
+- **Codify tribal knowledge** — capture standards that would otherwise live in a wiki or Slack thread.
+- **Enforce per-repo context** — scope notes to specific repositories so Devin only sees what's relevant.
+- **Automate knowledge rollouts** — use `for_each` or modules to provision notes across many repos.
+
+## Example Usage
+
+{{ tffile .ExampleFile }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Knowledge notes can be imported using their ID:
+
+```shell
+terraform import {{.Name}}.example note-abc123
+```
+
+## API Reference
+
+This resource corresponds to the following Devin API v3 endpoints:
+
+| Operation | Method | Endpoint |
+|-----------|--------|----------|
+| Create    | `POST`   | `/v3/knowledge` |
+| Read      | `GET`    | `/v3/knowledge/{id}` |
+| Update    | `PATCH`  | `/v3/knowledge/{id}` |
+| Delete    | `DELETE` | `/v3/knowledge/{id}` |
+
+See the [Devin API documentation](https://docs.devin.ai/api-reference/knowledge) for full details.
+
+## Notes
+
+- Knowledge notes are **eventually consistent** — after creation or update, it may take up to 30 seconds for Devin to surface the note in new sessions.
+- The `trigger` field uses semantic matching, not exact string comparison.
+- Notes with `scope = "repo"` are only surfaced when Devin is working in the specified repository.
+- The `content` field supports full GitHub-flavored markdown.
