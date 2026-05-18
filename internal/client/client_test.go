@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -107,5 +108,40 @@ func TestDoRequest_RateLimitRetry(t *testing.T) {
 	}
 	if attempts != 3 {
 		t.Errorf("expected 3 attempts, got %d", attempts)
+	}
+}
+
+func TestDoRequest_RateLimitRetry_PreservesBody(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		body, _ := io.ReadAll(r.Body)
+		if len(body) == 0 {
+			t.Errorf("attempt %d: received empty body, expected JSON payload", attempts)
+		}
+		if r.ContentLength == 0 && r.Method == "POST" {
+			t.Errorf("attempt %d: ContentLength is 0, expected non-zero", attempts)
+		}
+		if attempts <= 1 {
+			w.WriteHeader(429)
+			w.Write([]byte(`{"message": "rate limited"}`))
+			return
+		}
+		w.WriteHeader(200)
+		w.Write(body)
+	}))
+	defer server.Close()
+
+	c := NewClient(server.URL, "org-123", "cog_test_key")
+	payload := map[string]string{"name": "test", "body": "content"}
+	resp, err := c.doRequest(context.Background(), "POST", "/test", payload)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resp) == 0 {
+		t.Error("expected non-empty response body")
+	}
+	if attempts != 2 {
+		t.Errorf("expected 2 attempts, got %d", attempts)
 	}
 }

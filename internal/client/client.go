@@ -64,6 +64,13 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 			}
 		}
 
+		// Reset the body reader for retries so ContentLength is computed correctly
+		if reqBody != nil {
+			if seeker, ok := reqBody.(io.Seeker); ok {
+				seeker.Seek(0, io.SeekStart)
+			}
+		}
+
 		req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
@@ -73,13 +80,6 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 		req.Header.Set("User-Agent", c.UserAgent)
 		if body != nil {
 			req.Header.Set("Content-Type", "application/json")
-		}
-
-		// Reset the body reader for retries
-		if reqBody != nil {
-			if seeker, ok := reqBody.(io.Seeker); ok {
-				seeker.Seek(0, io.SeekStart)
-			}
 		}
 
 		resp, err := c.HTTPClient.Do(req)
