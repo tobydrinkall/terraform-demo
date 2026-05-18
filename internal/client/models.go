@@ -5,7 +5,7 @@ type KnowledgeNoteCreateRequest struct {
 	Name       string  `json:"name"`
 	Body       string  `json:"body"`
 	Trigger    string  `json:"trigger"`
-	PinnedRepo *string `json:"pinned_repo,omitempty"`
+	PinnedRepo *string `json:"pinned_repo"`
 }
 
 // KnowledgeNote is the API response for a single knowledge note.
