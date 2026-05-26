@@ -2,6 +2,7 @@ package sessions_poc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -40,10 +41,10 @@ type Session struct {
 
 // CreateSessionRequest is the payload for creating a new session.
 type CreateSessionRequest struct {
-	Prompt         string  `json:"prompt"`
-	IdempotencyKey string  `json:"idempotency_key,omitempty"`
-	CreateAsUserID string  `json:"create_as_user_id,omitempty"`
-	PlaybookID     string  `json:"playbook_id,omitempty"`
+	Prompt         string `json:"prompt"`
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
+	CreateAsUserID string `json:"create_as_user_id,omitempty"`
+	PlaybookID     string `json:"playbook_id,omitempty"`
 }
 
 // SessionList is the response from listing sessions.
@@ -72,7 +73,7 @@ func (c *SessionClient) sessionURL(sessionID string) string {
 	return fmt.Sprintf("%s/organizations/%s/sessions/%s", c.BaseURL, c.OrgID, devinID)
 }
 
-func (c *SessionClient) doRequest(method, url string, body interface{}) ([]byte, int, error) {
+func (c *SessionClient) doRequest(ctx context.Context, method, url string, body interface{}) ([]byte, int, error) {
 	var reqBody io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -82,7 +83,7 @@ func (c *SessionClient) doRequest(method, url string, body interface{}) ([]byte,
 		reqBody = bytes.NewReader(b)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
@@ -106,8 +107,8 @@ func (c *SessionClient) doRequest(method, url string, body interface{}) ([]byte,
 }
 
 // CreateSession creates a new Devin session.
-func (c *SessionClient) CreateSession(req CreateSessionRequest) (*Session, error) {
-	body, status, err := c.doRequest("POST", c.sessionsURL(), req)
+func (c *SessionClient) CreateSession(ctx context.Context, req CreateSessionRequest) (*Session, error) {
+	body, status, err := c.doRequest(ctx, "POST", c.sessionsURL(), req)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +124,8 @@ func (c *SessionClient) CreateSession(req CreateSessionRequest) (*Session, error
 }
 
 // GetSession retrieves a session by its ID.
-func (c *SessionClient) GetSession(sessionID string) (*Session, error) {
-	body, status, err := c.doRequest("GET", c.sessionURL(sessionID), nil)
+func (c *SessionClient) GetSession(ctx context.Context, sessionID string) (*Session, error) {
+	body, status, err := c.doRequest(ctx, "GET", c.sessionURL(sessionID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -143,8 +144,8 @@ func (c *SessionClient) GetSession(sessionID string) (*Session, error) {
 }
 
 // TerminateSession sends a DELETE to terminate the session.
-func (c *SessionClient) TerminateSession(sessionID string) (*Session, error) {
-	body, status, err := c.doRequest("DELETE", c.sessionURL(sessionID), nil)
+func (c *SessionClient) TerminateSession(ctx context.Context, sessionID string) (*Session, error) {
+	body, status, err := c.doRequest(ctx, "DELETE", c.sessionURL(sessionID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +164,7 @@ func (c *SessionClient) TerminateSession(sessionID string) (*Session, error) {
 }
 
 // ListSessions retrieves sessions with optional filters.
-func (c *SessionClient) ListSessions(limit int, status string, cursor string) (*SessionList, error) {
+func (c *SessionClient) ListSessions(ctx context.Context, limit int, status string, cursor string) (*SessionList, error) {
 	u, err := url.Parse(c.sessionsURL())
 	if err != nil {
 		return nil, err
@@ -181,7 +182,7 @@ func (c *SessionClient) ListSessions(limit int, status string, cursor string) (*
 	}
 	u.RawQuery = q.Encode()
 
-	body, httpStatus, err := c.doRequest("GET", u.String(), nil)
+	body, httpStatus, err := c.doRequest(ctx, "GET", u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -205,12 +206,24 @@ func IsTerminalStatus(status string) bool {
 	return false
 }
 
-// WaitForCompletion polls the session until it reaches a terminal state or timeout.
-func (c *SessionClient) WaitForCompletion(sessionID string, timeout time.Duration, pollInterval time.Duration) (*Session, error) {
-	deadline := time.Now().Add(timeout)
+// contextSleep sleeps for the given duration or returns early if ctx is cancelled.
+func contextSleep(ctx context.Context, d time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(d):
+		return nil
+	}
+}
 
-	for time.Now().Before(deadline) {
-		session, err := c.GetSession(sessionID)
+// WaitForCompletion polls the session until it reaches a terminal state or timeout.
+// Respects context cancellation (Terraform timeouts, Ctrl+C).
+func (c *SessionClient) WaitForCompletion(ctx context.Context, sessionID string, timeout time.Duration, pollInterval time.Duration) (*Session, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	for {
+		session, err := c.GetSession(ctx, sessionID)
 		if err != nil {
 			return nil, fmt.Errorf("polling session status: %w", err)
 		}
@@ -222,39 +235,32 @@ func (c *SessionClient) WaitForCompletion(sessionID string, timeout time.Duratio
 			return session, nil
 		}
 
-		// Check if status_detail indicates completion while status is still "running"
 		if session.Status == "running" && session.StatusDetail != nil && *session.StatusDetail == "finished" {
 			return session, nil
 		}
 
-		remaining := time.Until(deadline)
-		if remaining < pollInterval {
-			time.Sleep(remaining)
-		} else {
-			time.Sleep(pollInterval)
+		if err := contextSleep(ctx, pollInterval); err != nil {
+			// Context expired — do a final check
+			finalSession, getErr := c.GetSession(context.Background(), sessionID)
+			if getErr != nil || finalSession == nil {
+				return nil, fmt.Errorf("timeout waiting for session %s to complete", sessionID)
+			}
+			return finalSession, fmt.Errorf("timeout waiting for session %s to complete (last status: %s)", sessionID, finalSession.Status)
 		}
 	}
-
-	// Final check before returning timeout
-	session, err := c.GetSession(sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("final poll: %w", err)
-	}
-	if session == nil {
-		return nil, fmt.Errorf("timeout waiting for session %s to complete (session not found on final poll)", sessionID)
-	}
-	return session, fmt.Errorf("timeout waiting for session %s to complete (last status: %s)", sessionID, session.Status)
 }
 
 // WaitForTermination polls the session until it reaches a true terminal state
 // (IsTerminalStatus returns true). Unlike WaitForCompletion, this does NOT
 // treat running/finished as complete — use this after DELETE where the session
 // transitions through running/finished before reaching exit.
-func (c *SessionClient) WaitForTermination(sessionID string, timeout time.Duration, pollInterval time.Duration) (*Session, error) {
-	deadline := time.Now().Add(timeout)
+// Respects context cancellation.
+func (c *SessionClient) WaitForTermination(ctx context.Context, sessionID string, timeout time.Duration, pollInterval time.Duration) (*Session, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
-	for time.Now().Before(deadline) {
-		session, err := c.GetSession(sessionID)
+	for {
+		session, err := c.GetSession(ctx, sessionID)
 		if err != nil {
 			return nil, fmt.Errorf("polling session status: %w", err)
 		}
@@ -266,20 +272,12 @@ func (c *SessionClient) WaitForTermination(sessionID string, timeout time.Durati
 			return session, nil
 		}
 
-		remaining := time.Until(deadline)
-		if remaining < pollInterval {
-			time.Sleep(remaining)
-		} else {
-			time.Sleep(pollInterval)
+		if err := contextSleep(ctx, pollInterval); err != nil {
+			finalSession, getErr := c.GetSession(context.Background(), sessionID)
+			if getErr != nil || finalSession == nil {
+				return nil, nil
+			}
+			return finalSession, fmt.Errorf("timeout waiting for session %s to terminate (last status: %s)", sessionID, finalSession.Status)
 		}
 	}
-
-	session, err := c.GetSession(sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("final poll: %w", err)
-	}
-	if session == nil {
-		return nil, nil
-	}
-	return session, fmt.Errorf("timeout waiting for session %s to terminate (last status: %s)", sessionID, session.Status)
 }

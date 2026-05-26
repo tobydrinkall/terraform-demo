@@ -104,7 +104,7 @@ func resourceSessionFFCreate(ctx context.Context, d *schema.ResourceData, meta i
 		req.PlaybookID = v.(string)
 	}
 
-	session, err := client.CreateSession(req)
+	session, err := client.CreateSession(ctx, req)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("creating session: %w", err))
 	}
@@ -130,7 +130,7 @@ func resourceSessionFFCreate(ctx context.Context, d *schema.ResourceData, meta i
 func resourceSessionFFRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*SessionClient)
 
-	session, err := client.GetSession(d.Id())
+	session, err := client.GetSession(ctx, d.Id())
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("reading session %s: %w", d.Id(), err))
 	}
@@ -160,7 +160,7 @@ func resourceSessionFFRead(ctx context.Context, d *schema.ResourceData, meta int
 func resourceSessionFFDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*SessionClient)
 
-	session, err := client.GetSession(d.Id())
+	session, err := client.GetSession(ctx, d.Id())
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("reading session before delete: %w", err))
 	}
@@ -172,36 +172,17 @@ func resourceSessionFFDelete(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	// Terminate the active session
-	_, err = client.TerminateSession(d.Id())
+	_, err = client.TerminateSession(ctx, d.Id())
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("terminating session %s: %w", d.Id(), err))
 	}
 
-	// Poll until session reaches terminal state (DELETE is async)
-	pollCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-
-	for {
-		select {
-		case <-pollCtx.Done():
-			return diag.Diagnostics{
-				{
-					Severity: diag.Warning,
-					Summary:  fmt.Sprintf("Timeout waiting for session %s to terminate", d.Id()),
-					Detail:   "The DELETE request was sent but the session may still be shutting down.",
-				},
-			}
-		default:
-			s, err := client.GetSession(d.Id())
-			if err != nil {
-				log.Printf("[WARN] Error polling session %s during destroy: %v", d.Id(), err)
-				return nil
-			}
-			if s == nil || IsTerminalStatus(s.Status) {
-				log.Printf("[INFO] Session %s terminated successfully", d.Id())
-				return nil
-			}
-			time.Sleep(3 * time.Second)
-		}
+	// Wait for actual terminal state, respecting the resource's delete timeout
+	_, waitErr := client.WaitForTermination(ctx, d.Id(), d.Timeout(schema.TimeoutDelete), 3*time.Second)
+	if waitErr != nil {
+		log.Printf("[WARN] Session %s may still be shutting down: %v", d.Id(), waitErr)
 	}
+
+	log.Printf("[INFO] Session %s terminated", d.Id())
+	return nil
 }

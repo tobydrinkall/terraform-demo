@@ -94,7 +94,7 @@ func dataSourceSessionRead(ctx context.Context, d *schema.ResourceData, meta int
 
 	sessionID := d.Get("session_id").(string)
 
-	session, err := client.GetSession(sessionID)
+	session, err := client.GetSession(ctx, sessionID)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("reading session %s: %w", sessionID, err))
 	}
@@ -206,7 +206,7 @@ func dataSourceSessionsRead(ctx context.Context, d *schema.ResourceData, meta in
 		statusFilter = v.(string)
 	}
 
-	list, err := client.ListSessions(limit, statusFilter, "")
+	list, err := client.ListSessions(ctx, limit, statusFilter, "")
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("listing sessions: %w", err))
 	}

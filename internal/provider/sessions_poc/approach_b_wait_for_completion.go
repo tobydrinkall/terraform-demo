@@ -143,7 +143,7 @@ func resourceSessionWFCCreate(ctx context.Context, d *schema.ResourceData, meta 
 		req.PlaybookID = v.(string)
 	}
 
-	session, err := client.CreateSession(req)
+	session, err := client.CreateSession(ctx, req)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("creating session: %w", err))
 	}
@@ -180,7 +180,7 @@ func resourceSessionWFCCreate(ctx context.Context, d *schema.ResourceData, meta 
 		log.Printf("[INFO] Waiting for session %s to complete (timeout: %s, poll: %s)",
 			session.SessionID, timeout, pollInterval)
 
-		finalSession, err := client.WaitForCompletion(session.SessionID, timeout, pollInterval)
+		finalSession, err := client.WaitForCompletion(ctx, session.SessionID, timeout, pollInterval)
 		if err != nil {
 			if finalSession != nil {
 				// Timeout — session is still running, not a hard error
@@ -225,7 +225,7 @@ func resourceSessionWFCCreate(ctx context.Context, d *schema.ResourceData, meta 
 func resourceSessionWFCRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*SessionClient)
 
-	session, err := client.GetSession(d.Id())
+	session, err := client.GetSession(ctx, d.Id())
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("reading session %s: %w", d.Id(), err))
 	}
@@ -262,7 +262,7 @@ func resourceSessionWFCUpdate(ctx context.Context, d *schema.ResourceData, meta 
 func resourceSessionWFCDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*SessionClient)
 
-	session, err := client.GetSession(d.Id())
+	session, err := client.GetSession(ctx, d.Id())
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("reading session before delete: %w", err))
 	}
@@ -272,13 +272,13 @@ func resourceSessionWFCDelete(ctx context.Context, d *schema.ResourceData, meta 
 		return nil
 	}
 
-	_, err = client.TerminateSession(d.Id())
+	_, err = client.TerminateSession(ctx, d.Id())
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("terminating session %s: %w", d.Id(), err))
 	}
 
 	// Wait for actual terminal state (not running/finished which is transient after DELETE)
-	_, waitErr := client.WaitForTermination(d.Id(), 2*time.Minute, 3*time.Second)
+	_, waitErr := client.WaitForTermination(ctx, d.Id(), d.Timeout(schema.TimeoutDelete), 3*time.Second)
 	if waitErr != nil {
 		log.Printf("[WARN] Session %s may still be shutting down: %v", d.Id(), waitErr)
 	}
