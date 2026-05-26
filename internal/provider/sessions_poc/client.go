@@ -225,6 +225,14 @@ func (c *SessionClient) WaitForCompletion(ctx context.Context, sessionID string,
 	for {
 		session, err := c.GetSession(ctx, sessionID)
 		if err != nil {
+			if ctx.Err() != nil {
+				// Context expired during API call — treat as timeout, not hard error
+				finalSession, getErr := c.GetSession(context.Background(), sessionID)
+				if getErr != nil || finalSession == nil {
+					return nil, fmt.Errorf("timeout waiting for session %s to complete", sessionID)
+				}
+				return finalSession, fmt.Errorf("timeout waiting for session %s to complete (last status: %s)", sessionID, finalSession.Status)
+			}
 			return nil, fmt.Errorf("polling session status: %w", err)
 		}
 		if session == nil {
@@ -240,7 +248,6 @@ func (c *SessionClient) WaitForCompletion(ctx context.Context, sessionID string,
 		}
 
 		if err := contextSleep(ctx, pollInterval); err != nil {
-			// Context expired — do a final check
 			finalSession, getErr := c.GetSession(context.Background(), sessionID)
 			if getErr != nil || finalSession == nil {
 				return nil, fmt.Errorf("timeout waiting for session %s to complete", sessionID)
@@ -262,6 +269,13 @@ func (c *SessionClient) WaitForTermination(ctx context.Context, sessionID string
 	for {
 		session, err := c.GetSession(ctx, sessionID)
 		if err != nil {
+			if ctx.Err() != nil {
+				finalSession, getErr := c.GetSession(context.Background(), sessionID)
+				if getErr != nil || finalSession == nil {
+					return nil, nil
+				}
+				return finalSession, fmt.Errorf("timeout waiting for session %s to terminate (last status: %s)", sessionID, finalSession.Status)
+			}
 			return nil, fmt.Errorf("polling session status: %w", err)
 		}
 		if session == nil {
