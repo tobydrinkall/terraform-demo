@@ -1,0 +1,102 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 130
+        host: api.devin.ai
+        body: '{"name":"TF VCR Test - Basic","body":"Created via go-vcr recorded cassette.","trigger":"Never - VCR test only","pinned_repo":null}'
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            Content-Type:
+                - application/json
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 362
+        body: '{"note_id":"note-be546174e0644aa39a6303a4559c6e95","folder_id":null,"folder_path":"/","name":"TF VCR Test - Basic","body":"Created via go-vcr recorded cassette.","trigger":"Never - VCR test only","is_enabled":true,"created_at":1779824433,"updated_at":1779824433,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "362"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:33 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 154.874428ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.devin.ai
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes/note-be546174e0644aa39a6303a4559c6e95
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 362
+        body: '{"note_id":"note-be546174e0644aa39a6303a4559c6e95","folder_id":null,"folder_path":"/","name":"TF VCR Test - Basic","body":"Created via go-vcr recorded cassette.","trigger":"Never - VCR test only","is_enabled":true,"created_at":1779824433,"updated_at":1779824433,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "362"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:33 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 62.486095ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.devin.ai
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes/note-be546174e0644aa39a6303a4559c6e95
+        method: DELETE
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 362
+        body: '{"note_id":"note-be546174e0644aa39a6303a4559c6e95","folder_id":null,"folder_path":"/","name":"TF VCR Test - Basic","body":"Created via go-vcr recorded cassette.","trigger":"Never - VCR test only","is_enabled":true,"created_at":1779824433,"updated_at":1779824433,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "362"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:34 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 86.946014ms
