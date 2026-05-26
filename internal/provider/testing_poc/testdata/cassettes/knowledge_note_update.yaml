@@ -1,0 +1,201 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 114
+        host: api.devin.ai
+        body: '{"name":"TF VCR Test - Before Update","body":"Original VCR body.","trigger":"Never - VCR test","pinned_repo":null}'
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            Content-Type:
+                - application/json
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 346
+        body: '{"note_id":"note-5e1f7bb7266c4be7ba9670a5f5b51d4c","folder_id":null,"folder_path":"/","name":"TF VCR Test - Before Update","body":"Original VCR body.","trigger":"Never - VCR test","is_enabled":true,"created_at":1779824439,"updated_at":1779824439,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "346"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:39 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 5.367174379s
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.devin.ai
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes/note-5e1f7bb7266c4be7ba9670a5f5b51d4c
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 346
+        body: '{"note_id":"note-5e1f7bb7266c4be7ba9670a5f5b51d4c","folder_id":null,"folder_path":"/","name":"TF VCR Test - Before Update","body":"Original VCR body.","trigger":"Never - VCR test","is_enabled":true,"created_at":1779824439,"updated_at":1779824439,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "346"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:39 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 52.502384ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.devin.ai
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes/note-5e1f7bb7266c4be7ba9670a5f5b51d4c
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 346
+        body: '{"note_id":"note-5e1f7bb7266c4be7ba9670a5f5b51d4c","folder_id":null,"folder_path":"/","name":"TF VCR Test - Before Update","body":"Original VCR body.","trigger":"Never - VCR test","is_enabled":true,"created_at":1779824439,"updated_at":1779824439,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "346"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:40 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 63.796958ms
+    - id: 3
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 128
+        host: api.devin.ai
+        body: '{"name":"TF VCR Test - After Update","body":"Updated VCR body content.","trigger":"Never - VCR updated test","pinned_repo":null}'
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            Content-Type:
+                - application/json
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes/note-5e1f7bb7266c4be7ba9670a5f5b51d4c
+        method: PUT
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 360
+        body: '{"note_id":"note-5e1f7bb7266c4be7ba9670a5f5b51d4c","folder_id":null,"folder_path":"/","name":"TF VCR Test - After Update","body":"Updated VCR body content.","trigger":"Never - VCR updated test","is_enabled":true,"created_at":1779824439,"updated_at":1779824440,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "360"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:40 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 228.508378ms
+    - id: 4
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.devin.ai
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes/note-5e1f7bb7266c4be7ba9670a5f5b51d4c
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 360
+        body: '{"note_id":"note-5e1f7bb7266c4be7ba9670a5f5b51d4c","folder_id":null,"folder_path":"/","name":"TF VCR Test - After Update","body":"Updated VCR body content.","trigger":"Never - VCR updated test","is_enabled":true,"created_at":1779824439,"updated_at":1779824440,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "360"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:40 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 62.159969ms
+    - id: 5
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: api.devin.ai
+        headers:
+            Authorization:
+                - Bearer REDACTED
+            User-Agent:
+                - terraform-provider-devin/0.1.0
+        url: https://api.devin.ai/v3/organizations/org-vcr-replay/knowledge/notes/note-5e1f7bb7266c4be7ba9670a5f5b51d4c
+        method: DELETE
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: 360
+        body: '{"note_id":"note-5e1f7bb7266c4be7ba9670a5f5b51d4c","folder_id":null,"folder_path":"/","name":"TF VCR Test - After Update","body":"Updated VCR body content.","trigger":"Never - VCR updated test","is_enabled":true,"created_at":1779824439,"updated_at":1779824440,"access_type":"org","org_id":"org-vcr-replay","macro":null,"pinned_repo":null}'
+        headers:
+            Content-Length:
+                - "360"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 26 May 2026 19:40:41 GMT
+            Server:
+                - uvicorn
+        status: 200 OK
+        code: 200
+        duration: 324.225531ms
