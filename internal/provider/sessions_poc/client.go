@@ -245,3 +245,41 @@ func (c *SessionClient) WaitForCompletion(sessionID string, timeout time.Duratio
 	}
 	return session, fmt.Errorf("timeout waiting for session %s to complete (last status: %s)", sessionID, session.Status)
 }
+
+// WaitForTermination polls the session until it reaches a true terminal state
+// (IsTerminalStatus returns true). Unlike WaitForCompletion, this does NOT
+// treat running/finished as complete — use this after DELETE where the session
+// transitions through running/finished before reaching exit.
+func (c *SessionClient) WaitForTermination(sessionID string, timeout time.Duration, pollInterval time.Duration) (*Session, error) {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		session, err := c.GetSession(sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("polling session status: %w", err)
+		}
+		if session == nil {
+			return nil, nil
+		}
+
+		if IsTerminalStatus(session.Status) {
+			return session, nil
+		}
+
+		remaining := time.Until(deadline)
+		if remaining < pollInterval {
+			time.Sleep(remaining)
+		} else {
+			time.Sleep(pollInterval)
+		}
+	}
+
+	session, err := c.GetSession(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("final poll: %w", err)
+	}
+	if session == nil {
+		return nil, nil
+	}
+	return session, fmt.Errorf("timeout waiting for session %s to terminate (last status: %s)", sessionID, session.Status)
+}
