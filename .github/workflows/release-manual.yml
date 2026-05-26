@@ -1,11 +1,14 @@
 # Option B: Manual release pipeline (go build + gh release)
-# Triggers on v* tags (e.g., git tag v0.1.0 && git push --tags)
+# Kept as workflow_dispatch for comparison — Option A (GoReleaser) is the active v* tag pipeline.
+# To use this instead, swap triggers: move the v* tag trigger here and change release-goreleaser.yml to workflow_dispatch.
 name: Release (Manual)
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag (e.g. v0.1.0)"
+        required: true
 
 permissions:
   contents: write
@@ -17,6 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.tag }}
           fetch-depth: 0
 
       - name: Set up Go
@@ -30,7 +34,7 @@ jobs:
           echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --sign /dev/null 2>/dev/null || true
 
       - name: Build all platforms
-        run: make build-all
+        run: make build-all VERSION=${{ inputs.tag }}
 
       - name: Generate checksums
         run: make checksums
@@ -38,7 +42,9 @@ jobs:
       - name: Sign checksums
         run: |
           GPG_FINGERPRINT=$(gpg --list-keys --keyid-format long | grep -A1 'pub' | tail -1 | awk '{print $1}')
-          gpg --batch --local-user "$GPG_FINGERPRINT" --detach-sign dist/terraform-provider-devin_${GITHUB_REF_NAME#v}_SHA256SUMS
+          VERSION="${{ inputs.tag }}"
+          VERSION="${VERSION#v}"
+          gpg --batch --local-user "$GPG_FINGERPRINT" --detach-sign "dist/terraform-provider-devin_${VERSION}_SHA256SUMS"
 
       - name: Generate Terraform Registry manifest
         run: make manifest
@@ -47,9 +53,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
+          TAG="${{ inputs.tag }}"
+          VERSION="${TAG#v}"
+          gh release create "$TAG" \
+            --title "$TAG" \
             --generate-notes \
             dist/terraform-provider-devin_${VERSION}_*.zip \
             dist/terraform-provider-devin_${VERSION}_SHA256SUMS \
