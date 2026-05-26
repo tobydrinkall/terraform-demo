@@ -248,6 +248,8 @@ func resourceSessionWFCRead(ctx context.Context, d *schema.ResourceData, meta in
 	}
 	if session.Title != nil {
 		d.Set("title", *session.Title)
+	} else {
+		d.Set("title", "")
 	}
 
 	return nil

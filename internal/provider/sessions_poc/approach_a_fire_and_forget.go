@@ -152,6 +152,8 @@ func resourceSessionFFRead(ctx context.Context, d *schema.ResourceData, meta int
 	}
 	if session.Title != nil {
 		d.Set("title", *session.Title)
+	} else {
+		d.Set("title", "")
 	}
 
 	return nil
