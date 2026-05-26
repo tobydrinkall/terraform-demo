@@ -1,0 +1,297 @@
+package sessions_poc
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"time"
+)
+
+// SessionClient handles Devin API v3 session operations.
+type SessionClient struct {
+	APIKey  string
+	BaseURL string // e.g. "https://api.devin.ai/v3"
+	OrgID   string
+	HTTP    *http.Client
+}
+
+// Session represents a Devin session as returned by the API.
+type Session struct {
+	SessionID       string   `json:"session_id"`
+	URL             string   `json:"url"`
+	Status          string   `json:"status"`
+	StatusDetail    *string  `json:"status_detail"`
+	Title           *string  `json:"title"`
+	Tags            []string `json:"tags"`
+	PlaybookID      *string  `json:"playbook_id"`
+	UserID          string   `json:"user_id"`
+	OrgID           string   `json:"org_id"`
+	CreatedAt       int64    `json:"created_at"`
+	UpdatedAt       int64    `json:"updated_at"`
+	IsArchived      bool     `json:"is_archived"`
+	ACUsConsumed    float64  `json:"acus_consumed"`
+	Origin          string   `json:"origin"`
+	ServiceUserID   *string  `json:"service_user_id"`
+	ParentSessionID *string  `json:"parent_session_id"`
+}
+
+// CreateSessionRequest is the payload for creating a new session.
+type CreateSessionRequest struct {
+	Prompt         string `json:"prompt"`
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
+	CreateAsUserID string `json:"create_as_user_id,omitempty"`
+	PlaybookID     string `json:"playbook_id,omitempty"`
+}
+
+// SessionList is the response from listing sessions.
+type SessionList struct {
+	Items      []Session `json:"items"`
+	NextCursor *string   `json:"next_cursor"`
+}
+
+func NewSessionClient(apiKey, baseURL, orgID string) *SessionClient {
+	return &SessionClient{
+		APIKey:  apiKey,
+		BaseURL: baseURL,
+		OrgID:   orgID,
+		HTTP: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+}
+
+func (c *SessionClient) sessionsURL() string {
+	return fmt.Sprintf("%s/organizations/%s/sessions", c.BaseURL, c.OrgID)
+}
+
+func (c *SessionClient) sessionURL(sessionID string) string {
+	devinID := "devin-" + sessionID
+	return fmt.Sprintf("%s/organizations/%s/sessions/%s", c.BaseURL, c.OrgID, devinID)
+}
+
+func (c *SessionClient) doRequest(ctx context.Context, method, url string, body interface{}) ([]byte, int, error) {
+	var reqBody io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return nil, 0, fmt.Errorf("marshaling request body: %w", err)
+		}
+		reqBody = bytes.NewReader(b)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("reading response: %w", err)
+	}
+
+	return respBody, resp.StatusCode, nil
+}
+
+// CreateSession creates a new Devin session.
+func (c *SessionClient) CreateSession(ctx context.Context, req CreateSessionRequest) (*Session, error) {
+	body, status, err := c.doRequest(ctx, "POST", c.sessionsURL(), req)
+	if err != nil {
+		return nil, err
+	}
+	if status < 200 || status >= 300 {
+		return nil, fmt.Errorf("API returned status %d: %s", status, string(body))
+	}
+
+	var session Session
+	if err := json.Unmarshal(body, &session); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &session, nil
+}
+
+// GetSession retrieves a session by its ID.
+func (c *SessionClient) GetSession(ctx context.Context, sessionID string) (*Session, error) {
+	body, status, err := c.doRequest(ctx, "GET", c.sessionURL(sessionID), nil)
+	if err != nil {
+		return nil, err
+	}
+	if status == 404 {
+		return nil, nil
+	}
+	if status < 200 || status >= 300 {
+		return nil, fmt.Errorf("API returned status %d: %s", status, string(body))
+	}
+
+	var session Session
+	if err := json.Unmarshal(body, &session); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &session, nil
+}
+
+// TerminateSession sends a DELETE to terminate the session.
+func (c *SessionClient) TerminateSession(ctx context.Context, sessionID string) (*Session, error) {
+	body, status, err := c.doRequest(ctx, "DELETE", c.sessionURL(sessionID), nil)
+	if err != nil {
+		return nil, err
+	}
+	if status == 404 {
+		return nil, nil
+	}
+	if status < 200 || status >= 300 {
+		return nil, fmt.Errorf("API returned status %d: %s", status, string(body))
+	}
+
+	var session Session
+	if err := json.Unmarshal(body, &session); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &session, nil
+}
+
+// ListSessions retrieves sessions with optional filters.
+func (c *SessionClient) ListSessions(ctx context.Context, limit int, status string, cursor string) (*SessionList, error) {
+	u, err := url.Parse(c.sessionsURL())
+	if err != nil {
+		return nil, err
+	}
+
+	q := u.Query()
+	if limit > 0 {
+		q.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if status != "" {
+		q.Set("status", status)
+	}
+	if cursor != "" {
+		q.Set("cursor", cursor)
+	}
+	u.RawQuery = q.Encode()
+
+	body, httpStatus, err := c.doRequest(ctx, "GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	if httpStatus < 200 || httpStatus >= 300 {
+		return nil, fmt.Errorf("API returned status %d: %s", httpStatus, string(body))
+	}
+
+	var list SessionList
+	if err := json.Unmarshal(body, &list); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+	return &list, nil
+}
+
+// IsTerminalStatus returns true if the session has reached a terminal state.
+func IsTerminalStatus(status string) bool {
+	switch status {
+	case "exit", "stopped", "failed", "terminated":
+		return true
+	}
+	return false
+}
+
+// contextSleep sleeps for the given duration or returns early if ctx is cancelled.
+func contextSleep(ctx context.Context, d time.Duration) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(d):
+		return nil
+	}
+}
+
+// WaitForCompletion polls the session until it reaches a terminal state or timeout.
+// Respects context cancellation (Terraform timeouts, Ctrl+C).
+func (c *SessionClient) WaitForCompletion(ctx context.Context, sessionID string, timeout time.Duration, pollInterval time.Duration) (*Session, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	for {
+		session, err := c.GetSession(ctx, sessionID)
+		if err != nil {
+			if ctx.Err() != nil {
+				// Context expired during API call — treat as timeout, not hard error
+				finalSession, getErr := c.GetSession(context.Background(), sessionID)
+				if getErr != nil || finalSession == nil {
+					return nil, fmt.Errorf("timeout waiting for session %s to complete", sessionID)
+				}
+				return finalSession, fmt.Errorf("timeout waiting for session %s to complete (last status: %s)", sessionID, finalSession.Status)
+			}
+			return nil, fmt.Errorf("polling session status: %w", err)
+		}
+		if session == nil {
+			return nil, fmt.Errorf("session %s not found during polling", sessionID)
+		}
+
+		if IsTerminalStatus(session.Status) {
+			return session, nil
+		}
+
+		if session.Status == "running" && session.StatusDetail != nil && *session.StatusDetail == "finished" {
+			return session, nil
+		}
+
+		if err := contextSleep(ctx, pollInterval); err != nil {
+			finalSession, getErr := c.GetSession(context.Background(), sessionID)
+			if getErr != nil || finalSession == nil {
+				return nil, fmt.Errorf("timeout waiting for session %s to complete", sessionID)
+			}
+			return finalSession, fmt.Errorf("timeout waiting for session %s to complete (last status: %s)", sessionID, finalSession.Status)
+		}
+	}
+}
+
+// WaitForTermination polls the session until it reaches a true terminal state
+// (IsTerminalStatus returns true). Unlike WaitForCompletion, this does NOT
+// treat running/finished as complete — use this after DELETE where the session
+// transitions through running/finished before reaching exit.
+// Respects context cancellation.
+func (c *SessionClient) WaitForTermination(ctx context.Context, sessionID string, timeout time.Duration, pollInterval time.Duration) (*Session, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	for {
+		session, err := c.GetSession(ctx, sessionID)
+		if err != nil {
+			if ctx.Err() != nil {
+				finalSession, getErr := c.GetSession(context.Background(), sessionID)
+				if getErr != nil || finalSession == nil {
+					return nil, nil
+				}
+				return finalSession, fmt.Errorf("timeout waiting for session %s to terminate (last status: %s)", sessionID, finalSession.Status)
+			}
+			return nil, fmt.Errorf("polling session status: %w", err)
+		}
+		if session == nil {
+			return nil, nil
+		}
+
+		if IsTerminalStatus(session.Status) {
+			return session, nil
+		}
+
+		if err := contextSleep(ctx, pollInterval); err != nil {
+			finalSession, getErr := c.GetSession(context.Background(), sessionID)
+			if getErr != nil || finalSession == nil {
+				return nil, nil
+			}
+			return finalSession, fmt.Errorf("timeout waiting for session %s to terminate (last status: %s)", sessionID, finalSession.Status)
+		}
+	}
+}
