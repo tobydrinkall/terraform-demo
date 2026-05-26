@@ -1,0 +1,57 @@
+# Option B: Manual release pipeline (go build + gh release)
+# Triggers on v* tags (e.g., git tag v0.1.0 && git push --tags)
+name: Release (Manual)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --sign /dev/null 2>/dev/null || true
+
+      - name: Build all platforms
+        run: make build-all
+
+      - name: Generate checksums
+        run: make checksums
+
+      - name: Sign checksums
+        run: |
+          GPG_FINGERPRINT=$(gpg --list-keys --keyid-format long | grep -A1 'pub' | tail -1 | awk '{print $1}')
+          gpg --batch --local-user "$GPG_FINGERPRINT" --detach-sign dist/terraform-provider-devin_${GITHUB_REF_NAME#v}_SHA256SUMS
+
+      - name: Generate Terraform Registry manifest
+        run: make manifest
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            dist/terraform-provider-devin_${VERSION}_*.zip \
+            dist/terraform-provider-devin_${VERSION}_SHA256SUMS \
+            dist/terraform-provider-devin_${VERSION}_SHA256SUMS.sig \
+            dist/terraform-registry-manifest.json
