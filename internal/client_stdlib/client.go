@@ -155,8 +155,9 @@ func (c *Client) doRequest(ctx context.Context, method, urlStr string, body inte
 	}
 
 	var lastErr error
+	retryAfterUsed := false
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
-		if attempt > 0 {
+		if attempt > 0 && !retryAfterUsed {
 			delay := c.calculateBackoff(attempt)
 			c.logger.Warn("retrying request",
 				"attempt", attempt,
@@ -171,6 +172,7 @@ func (c *Client) doRequest(ctx context.Context, method, urlStr string, body inte
 			case <-time.After(delay):
 			}
 		}
+		retryAfterUsed = false
 
 		if bodyBytes != nil {
 			bodyReader = bytes.NewReader(bodyBytes)
@@ -233,6 +235,7 @@ func (c *Client) doRequest(ctx context.Context, method, urlStr string, body inte
 						return nil, 0, ctx.Err()
 					case <-time.After(time.Duration(secs) * time.Second):
 					}
+					retryAfterUsed = true
 				}
 			}
 			continue
