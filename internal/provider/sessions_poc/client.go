@@ -240,5 +240,8 @@ func (c *SessionClient) WaitForCompletion(sessionID string, timeout time.Duratio
 	if err != nil {
 		return nil, fmt.Errorf("final poll: %w", err)
 	}
+	if session == nil {
+		return nil, fmt.Errorf("timeout waiting for session %s to complete (session not found on final poll)", sessionID)
+	}
 	return session, fmt.Errorf("timeout waiting for session %s to complete (last status: %s)", sessionID, session.Status)
 }

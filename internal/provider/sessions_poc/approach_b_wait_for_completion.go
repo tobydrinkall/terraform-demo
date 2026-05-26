@@ -197,11 +197,16 @@ func resourceSessionWFCCreate(ctx context.Context, d *schema.ResourceData, meta 
 				}
 			}
 
+			lastStatus := "unknown"
+			if finalSession != nil {
+				lastStatus = finalSession.Status
+			}
+
 			return diag.Diagnostics{
 				{
 					Severity: diag.Warning,
 					Summary:  "Session did not complete within timeout",
-					Detail:   fmt.Sprintf("Session %s is still in status %q after %s. It will continue running.", session.SessionID, finalSession.Status, timeout),
+					Detail:   fmt.Sprintf("Session %s is still in status %q after %s. It will continue running.", session.SessionID, lastStatus, timeout),
 				},
 			}
 		}
