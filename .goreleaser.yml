@@ -1,0 +1,78 @@
+# GoReleaser configuration for terraform-provider-devin
+# Triggered by pushing a v* tag (e.g., v0.1.0)
+# Docs: https://goreleaser.com/customization/
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: terraform-provider-devin
+    main: ./main.go
+    binary: "terraform-provider-devin_v{{ .Version }}"
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - "-s -w -X main.version={{ .Version }}"
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: zip-archives
+    formats:
+      - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - none*
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
+  algorithm: sha256
+
+signs:
+  - artifacts: checksum
+    args:
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+release:
+  github:
+    owner: tobydrinkall
+    name: terraform-demo
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
+  extra_files:
+    - glob: "terraform-registry-manifest.json"
+
+# Generate the Terraform Registry manifest
+publishers:
+  - name: terraform-registry-manifest
+    cmd: |
+      echo '{"version":1,"metadata":{"protocol_versions":["6.0"]}}' > terraform-registry-manifest.json
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
