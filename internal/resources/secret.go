@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -85,10 +86,16 @@ func (r *SecretResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(true),
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
 			},
 			"note": schema.StringAttribute{
 				Description: "A human-readable note describing what this secret is for.",
 				Optional:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"access_type": schema.StringAttribute{
 				Description: "The access type (org or personal).",
@@ -207,6 +214,15 @@ func (r *SecretResource) ImportState(ctx context.Context, req resource.ImportSta
 		)
 		return
 	}
+
+	if parts[0] != r.orgID {
+		resp.Diagnostics.AddError(
+			"Organization ID mismatch",
+			fmt.Sprintf("Import org_id %q does not match provider organization_id %q.", parts[0], r.orgID),
+		)
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[1])...)
 }
 

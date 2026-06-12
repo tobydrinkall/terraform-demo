@@ -238,6 +238,14 @@ func (r *KnowledgeNoteResource) ImportState(ctx context.Context, req resource.Im
 		return
 	}
 
+	if parts[0] != r.orgID {
+		resp.Diagnostics.AddError(
+			"Organization ID mismatch",
+			fmt.Sprintf("Import org_id %q does not match provider organization_id %q.", parts[0], r.orgID),
+		)
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[1])...)
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("org_id"), parts[0])...)
 }

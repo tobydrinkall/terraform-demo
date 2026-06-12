@@ -197,6 +197,15 @@ func (r *PlaybookResource) ImportState(ctx context.Context, req resource.ImportS
 		)
 		return
 	}
+
+	if parts[0] != r.orgID {
+		resp.Diagnostics.AddError(
+			"Organization ID mismatch",
+			fmt.Sprintf("Import org_id %q does not match provider organization_id %q.", parts[0], r.orgID),
+		)
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), parts[1])...)
 }
 

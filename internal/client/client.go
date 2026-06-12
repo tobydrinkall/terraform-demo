@@ -102,10 +102,15 @@ func (e *APIError) Error() string {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body interface{}, result interface{}) error {
-	u, err := url.JoinPath(c.baseURL, path)
+	base, err := url.Parse(c.baseURL)
 	if err != nil {
-		return fmt.Errorf("building URL: %w", err)
+		return fmt.Errorf("parsing base URL: %w", err)
 	}
+	ref, err := url.Parse(path)
+	if err != nil {
+		return fmt.Errorf("parsing path: %w", err)
+	}
+	u := base.ResolveReference(ref).String()
 
 	var reqBody io.Reader
 	if body != nil {
