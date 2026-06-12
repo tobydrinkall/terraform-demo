@@ -44,7 +44,7 @@ func TestCreateNote(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(expected)
+		_ = json.NewEncoder(w).Encode(expected)
 	}))
 	defer server.Close()
 
@@ -82,7 +82,7 @@ func TestGetNote(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(expected)
+		_ = json.NewEncoder(w).Encode(expected)
 	}))
 	defer server.Close()
 
@@ -101,7 +101,7 @@ func TestNotFoundError(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"detail": "not found"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"detail": "not found"})
 	}))
 	defer server.Close()
 
@@ -123,7 +123,7 @@ func TestDeleteNote(t *testing.T) {
 			t.Errorf("expected DELETE, got %s", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(&client.KnowledgeNoteResponse{NoteID: "note-789"})
+		_ = json.NewEncoder(w).Encode(&client.KnowledgeNoteResponse{NoteID: "note-789"})
 	}))
 	defer server.Close()
 
