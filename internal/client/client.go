@@ -180,7 +180,7 @@ type KnowledgeNoteCreateRequest struct {
 	Name       string  `json:"name"`
 	Body       string  `json:"body"`
 	Trigger    string  `json:"trigger"`
-	PinnedRepo *string `json:"pinned_repo,omitempty"`
+	PinnedRepo *string `json:"pinned_repo"`
 }
 
 // KnowledgeNoteResponse is the API response for a knowledge note.
@@ -469,6 +469,16 @@ func (c *Client) GetSchedule(ctx context.Context, orgID, scheduleID string) (*Sc
 func (c *Client) UpdateSchedule(ctx context.Context, orgID, scheduleID string, req *ScheduleUpdateRequest) (*ScheduleResponse, error) {
 	var resp ScheduleResponse
 	if err := c.do(ctx, http.MethodPatch, c.schedulePath(orgID, scheduleID), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// UpdateScheduleRaw updates a schedule using a raw map body, allowing explicit null values
+// to clear fields under PATCH semantics.
+func (c *Client) UpdateScheduleRaw(ctx context.Context, orgID, scheduleID string, body map[string]interface{}) (*ScheduleResponse, error) {
+	var resp ScheduleResponse
+	if err := c.do(ctx, http.MethodPatch, c.schedulePath(orgID, scheduleID), body, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil

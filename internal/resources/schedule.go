@@ -225,42 +225,47 @@ func (r *ScheduleResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	updateReq := &client.ScheduleUpdateRequest{}
-	name := plan.Name.ValueString()
-	updateReq.Name = &name
-	prompt := plan.Prompt.ValueString()
-	updateReq.Prompt = &prompt
+	// Build PATCH body as a map so we can send explicit null for cleared fields.
+	body := map[string]interface{}{
+		"name":   plan.Name.ValueString(),
+		"prompt": plan.Prompt.ValueString(),
+	}
 
 	if !plan.PlaybookID.IsNull() && !plan.PlaybookID.IsUnknown() {
-		v := plan.PlaybookID.ValueString()
-		updateReq.PlaybookID = &v
-	}
-	if !plan.Frequency.IsNull() && !plan.Frequency.IsUnknown() {
-		v := plan.Frequency.ValueString()
-		updateReq.Frequency = &v
-	}
-	if !plan.ScheduledAt.IsNull() && !plan.ScheduledAt.IsUnknown() {
-		v := plan.ScheduledAt.ValueString()
-		updateReq.ScheduledAt = &v
-	}
-	if !plan.Enabled.IsNull() && !plan.Enabled.IsUnknown() {
-		v := plan.Enabled.ValueBool()
-		updateReq.Enabled = &v
-	}
-	if !plan.NotifyOn.IsNull() && !plan.NotifyOn.IsUnknown() {
-		v := plan.NotifyOn.ValueString()
-		updateReq.NotifyOn = &v
-	}
-	if !plan.Agent.IsNull() && !plan.Agent.IsUnknown() {
-		v := plan.Agent.ValueString()
-		updateReq.Agent = &v
-	}
-	if !plan.BypassApproval.IsNull() && !plan.BypassApproval.IsUnknown() {
-		v := plan.BypassApproval.ValueBool()
-		updateReq.BypassApproval = &v
+		body["playbook_id"] = plan.PlaybookID.ValueString()
+	} else {
+		body["playbook_id"] = nil
 	}
 
-	schedule, err := r.client.UpdateSchedule(ctx, r.orgID, state.ID.ValueString(), updateReq)
+	if !plan.Frequency.IsNull() && !plan.Frequency.IsUnknown() {
+		body["frequency"] = plan.Frequency.ValueString()
+	} else {
+		body["frequency"] = nil
+	}
+
+	if !plan.ScheduledAt.IsNull() && !plan.ScheduledAt.IsUnknown() {
+		body["scheduled_at"] = plan.ScheduledAt.ValueString()
+	} else {
+		body["scheduled_at"] = nil
+	}
+
+	if !plan.Enabled.IsNull() && !plan.Enabled.IsUnknown() {
+		body["enabled"] = plan.Enabled.ValueBool()
+	}
+
+	if !plan.NotifyOn.IsNull() && !plan.NotifyOn.IsUnknown() {
+		body["notify_on"] = plan.NotifyOn.ValueString()
+	}
+
+	if !plan.Agent.IsNull() && !plan.Agent.IsUnknown() {
+		body["agent"] = plan.Agent.ValueString()
+	}
+
+	if !plan.BypassApproval.IsNull() && !plan.BypassApproval.IsUnknown() {
+		body["bypass_approval"] = plan.BypassApproval.ValueBool()
+	}
+
+	schedule, err := r.client.UpdateScheduleRaw(ctx, r.orgID, state.ID.ValueString(), body)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating schedule", err.Error())
 		return
