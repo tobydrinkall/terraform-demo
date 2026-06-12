@@ -356,6 +356,27 @@ func (c *Client) UpdatePlaybook(ctx context.Context, orgID, playbookID string, r
 	return &resp, nil
 }
 
+// ListPlaybooks lists playbooks with pagination.
+func (c *Client) ListPlaybooks(ctx context.Context, orgID string, after string, first int) (*PaginatedPlaybooksResponse, error) {
+	path := c.playbooksPath(orgID)
+	params := url.Values{}
+	if after != "" {
+		params.Set("after", after)
+	}
+	if first > 0 {
+		params.Set("first", strconv.Itoa(first))
+	}
+	if len(params) > 0 {
+		path += "?" + params.Encode()
+	}
+
+	var resp PaginatedPlaybooksResponse
+	if err := c.do(ctx, http.MethodGet, path, nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // DeletePlaybook deletes a playbook.
 func (c *Client) DeletePlaybook(ctx context.Context, orgID, playbookID string) error {
 	return c.do(ctx, http.MethodDelete, c.playbookPath(orgID, playbookID), nil, nil)
@@ -451,4 +472,88 @@ func (c *Client) UpdateSchedule(ctx context.Context, orgID, scheduleID string, r
 // DeleteSchedule deletes a schedule.
 func (c *Client) DeleteSchedule(ctx context.Context, orgID, scheduleID string) error {
 	return c.do(ctx, http.MethodDelete, c.schedulePath(orgID, scheduleID), nil, nil)
+}
+
+// --- Secrets ---
+
+// SecretCreateRequest is the request body for creating a secret.
+type SecretCreateRequest struct {
+	Key         string  `json:"key"`
+	Value       string  `json:"value"`
+	SecretType  string  `json:"type"`
+	IsSensitive bool    `json:"is_sensitive"`
+	Note        *string `json:"note,omitempty"`
+}
+
+// SecretResponse is the API response for a secret (metadata only, no value).
+type SecretResponse struct {
+	SecretID    string  `json:"secret_id"`
+	Key         *string `json:"key"`
+	SecretType  string  `json:"secret_type"`
+	IsSensitive bool    `json:"is_sensitive"`
+	Note        *string `json:"note"`
+	AccessType  string  `json:"access_type"`
+	CreatedBy   string  `json:"created_by"`
+	CreatedAt   int64   `json:"created_at"`
+	UpdatedAt   *int64  `json:"updated_at"`
+	UpdatedBy   *string `json:"updated_by"`
+}
+
+// PaginatedSecretsResponse is the paginated list response.
+type PaginatedSecretsResponse struct {
+	Items       []SecretResponse `json:"items"`
+	EndCursor   *string          `json:"end_cursor"`
+	HasNextPage bool             `json:"has_next_page"`
+	Total       *int             `json:"total"`
+}
+
+func (c *Client) secretsPath(orgID string) string {
+	return fmt.Sprintf("/v3/organizations/%s/secrets", orgID)
+}
+
+func (c *Client) secretPath(orgID, secretID string) string {
+	return fmt.Sprintf("/v3/organizations/%s/secrets/%s", orgID, secretID)
+}
+
+// CreateSecret creates a new secret.
+func (c *Client) CreateSecret(ctx context.Context, orgID string, req *SecretCreateRequest) (*SecretResponse, error) {
+	var resp SecretResponse
+	if err := c.do(ctx, http.MethodPost, c.secretsPath(orgID), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// FindSecretByID finds a secret by ID via list+filter (no GET-by-ID endpoint).
+func (c *Client) FindSecretByID(ctx context.Context, orgID, secretID string) (*SecretResponse, error) {
+	var cursor string
+	for {
+		path := c.secretsPath(orgID) + "?first=100"
+		if cursor != "" {
+			path += "&after=" + url.QueryEscape(cursor)
+		}
+
+		var resp PaginatedSecretsResponse
+		if err := c.do(ctx, http.MethodGet, path, nil, &resp); err != nil {
+			return nil, err
+		}
+
+		for i := range resp.Items {
+			if resp.Items[i].SecretID == secretID {
+				return &resp.Items[i], nil
+			}
+		}
+
+		if !resp.HasNextPage || resp.EndCursor == nil {
+			break
+		}
+		cursor = *resp.EndCursor
+	}
+
+	return nil, &APIError{StatusCode: http.StatusNotFound, Message: "secret not found: " + secretID}
+}
+
+// DeleteSecret deletes a secret.
+func (c *Client) DeleteSecret(ctx context.Context, orgID, secretID string) error {
+	return c.do(ctx, http.MethodDelete, c.secretPath(orgID, secretID), nil, nil)
 }

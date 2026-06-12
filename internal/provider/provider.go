@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/tobydrinkall/terraform-provider-devin/internal/client"
+	"github.com/tobydrinkall/terraform-provider-devin/internal/datasources"
 	"github.com/tobydrinkall/terraform-provider-devin/internal/resources"
 	sharedtypes "github.com/tobydrinkall/terraform-provider-devin/internal/types"
 )
@@ -122,9 +123,13 @@ func (p *DevinProvider) Resources(_ context.Context) []func() resource.Resource 
 		resources.NewKnowledgeNoteResource,
 		resources.NewPlaybookResource,
 		resources.NewScheduleResource,
+		resources.NewSecretResource,
 	}
 }
 
 func (p *DevinProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		datasources.NewKnowledgeNotesDataSource,
+		datasources.NewPlaybooksDataSource,
+	}
 }
