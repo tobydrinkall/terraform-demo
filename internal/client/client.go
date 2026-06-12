@@ -294,3 +294,161 @@ func IsNotFound(err error) bool {
 	}
 	return false
 }
+
+// --- Playbooks ---
+
+// PlaybookCreateRequest is the request body for creating/updating a playbook.
+type PlaybookCreateRequest struct {
+	Title   string  `json:"title"`
+	Content string  `json:"content"`
+	Macro   *string `json:"macro,omitempty"`
+}
+
+// PlaybookResponse is the API response for a playbook.
+type PlaybookResponse struct {
+	PlaybookID string  `json:"playbook_id"`
+	Title      string  `json:"title"`
+	Content    string  `json:"content"`
+	Macro      *string `json:"macro"`
+	CreatedAt  int64   `json:"created_at"`
+	UpdatedAt  int64   `json:"updated_at"`
+}
+
+// PaginatedPlaybooksResponse is the paginated list response.
+type PaginatedPlaybooksResponse struct {
+	Playbooks   []PlaybookResponse `json:"playbooks"`
+	EndCursor   *string            `json:"end_cursor"`
+	HasNextPage bool               `json:"has_next_page"`
+}
+
+func (c *Client) playbooksPath(orgID string) string {
+	return fmt.Sprintf("/v3/organizations/%s/playbooks", orgID)
+}
+
+func (c *Client) playbookPath(orgID, playbookID string) string {
+	return fmt.Sprintf("/v3/organizations/%s/playbooks/%s", orgID, playbookID)
+}
+
+// CreatePlaybook creates a new playbook.
+func (c *Client) CreatePlaybook(ctx context.Context, orgID string, req *PlaybookCreateRequest) (*PlaybookResponse, error) {
+	var resp PlaybookResponse
+	if err := c.do(ctx, http.MethodPost, c.playbooksPath(orgID), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetPlaybook retrieves a playbook by ID.
+func (c *Client) GetPlaybook(ctx context.Context, orgID, playbookID string) (*PlaybookResponse, error) {
+	var resp PlaybookResponse
+	if err := c.do(ctx, http.MethodGet, c.playbookPath(orgID, playbookID), nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// UpdatePlaybook updates a playbook (full replace via PUT).
+func (c *Client) UpdatePlaybook(ctx context.Context, orgID, playbookID string, req *PlaybookCreateRequest) (*PlaybookResponse, error) {
+	var resp PlaybookResponse
+	if err := c.do(ctx, http.MethodPut, c.playbookPath(orgID, playbookID), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// DeletePlaybook deletes a playbook.
+func (c *Client) DeletePlaybook(ctx context.Context, orgID, playbookID string) error {
+	return c.do(ctx, http.MethodDelete, c.playbookPath(orgID, playbookID), nil, nil)
+}
+
+// --- Schedules ---
+
+// ScheduleCreateRequest is the request body for creating a schedule.
+type ScheduleCreateRequest struct {
+	Name           string  `json:"name"`
+	Prompt         string  `json:"prompt"`
+	PlaybookID     *string `json:"playbook_id,omitempty"`
+	Frequency      *string `json:"frequency,omitempty"`
+	ScheduleType   string  `json:"schedule_type"`
+	ScheduledAt    *string `json:"scheduled_at,omitempty"`
+	Enabled        *bool   `json:"enabled,omitempty"`
+	NotifyOn       *string `json:"notify_on,omitempty"`
+	Agent          *string `json:"agent,omitempty"`
+	BypassApproval *bool   `json:"bypass_approval,omitempty"`
+}
+
+// ScheduleUpdateRequest is the request body for updating a schedule (PATCH).
+type ScheduleUpdateRequest struct {
+	Name           *string `json:"name,omitempty"`
+	Prompt         *string `json:"prompt,omitempty"`
+	PlaybookID     *string `json:"playbook_id,omitempty"`
+	Frequency      *string `json:"frequency,omitempty"`
+	ScheduledAt    *string `json:"scheduled_at,omitempty"`
+	Enabled        *bool   `json:"enabled,omitempty"`
+	NotifyOn       *string `json:"notify_on,omitempty"`
+	Agent          *string `json:"agent,omitempty"`
+	BypassApproval *bool   `json:"bypass_approval,omitempty"`
+}
+
+// ScheduleResponse is the API response for a schedule.
+type ScheduleResponse struct {
+	ScheduleID     string  `json:"schedule_id"`
+	Name           string  `json:"name"`
+	Prompt         string  `json:"prompt"`
+	PlaybookID     *string `json:"playbook_id"`
+	Frequency      *string `json:"frequency"`
+	ScheduleType   string  `json:"schedule_type"`
+	ScheduledAt    *string `json:"scheduled_at"`
+	Enabled        bool    `json:"enabled"`
+	NotifyOn       string  `json:"notify_on"`
+	Agent          string  `json:"agent"`
+	BypassApproval bool    `json:"bypass_approval"`
+	CreatedAt      int64   `json:"created_at"`
+	UpdatedAt      int64   `json:"updated_at"`
+}
+
+// PaginatedSchedulesResponse is the paginated list response.
+type PaginatedSchedulesResponse struct {
+	Schedules []ScheduleResponse `json:"schedules"`
+	Total     int                `json:"total"`
+}
+
+func (c *Client) schedulesPath(orgID string) string {
+	return fmt.Sprintf("/v3/organizations/%s/schedules", orgID)
+}
+
+func (c *Client) schedulePath(orgID, scheduleID string) string {
+	return fmt.Sprintf("/v3/organizations/%s/schedules/%s", orgID, scheduleID)
+}
+
+// CreateSchedule creates a new schedule.
+func (c *Client) CreateSchedule(ctx context.Context, orgID string, req *ScheduleCreateRequest) (*ScheduleResponse, error) {
+	var resp ScheduleResponse
+	if err := c.do(ctx, http.MethodPost, c.schedulesPath(orgID), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetSchedule retrieves a schedule by ID.
+func (c *Client) GetSchedule(ctx context.Context, orgID, scheduleID string) (*ScheduleResponse, error) {
+	var resp ScheduleResponse
+	if err := c.do(ctx, http.MethodGet, c.schedulePath(orgID, scheduleID), nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// UpdateSchedule updates a schedule (PATCH semantics — partial update).
+func (c *Client) UpdateSchedule(ctx context.Context, orgID, scheduleID string, req *ScheduleUpdateRequest) (*ScheduleResponse, error) {
+	var resp ScheduleResponse
+	if err := c.do(ctx, http.MethodPatch, c.schedulePath(orgID, scheduleID), req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// DeleteSchedule deletes a schedule.
+func (c *Client) DeleteSchedule(ctx context.Context, orgID, scheduleID string) error {
+	return c.do(ctx, http.MethodDelete, c.schedulePath(orgID, scheduleID), nil, nil)
+}

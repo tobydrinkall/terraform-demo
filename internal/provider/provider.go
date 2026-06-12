@@ -120,6 +120,8 @@ func (p *DevinProvider) Configure(ctx context.Context, req provider.ConfigureReq
 func (p *DevinProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		resources.NewKnowledgeNoteResource,
+		resources.NewPlaybookResource,
+		resources.NewScheduleResource,
 	}
 }
 
