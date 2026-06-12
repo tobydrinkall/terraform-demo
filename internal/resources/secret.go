@@ -236,6 +236,8 @@ func mapSecretToModel(s *client.SecretResponse, model *SecretResourceModel) {
 
 	if s.Key != nil {
 		model.Key = types.StringValue(*s.Key)
+	} else {
+		model.Key = types.StringNull()
 	}
 	if s.Note != nil {
 		model.Note = types.StringValue(*s.Note)

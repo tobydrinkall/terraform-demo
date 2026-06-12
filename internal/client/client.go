@@ -306,7 +306,7 @@ func IsNotFound(err error) bool {
 type PlaybookCreateRequest struct {
 	Title   string  `json:"title"`
 	Content string  `json:"content"`
-	Macro   *string `json:"macro,omitempty"`
+	Macro   *string `json:"macro"`
 }
 
 // PlaybookResponse is the API response for a playbook.
