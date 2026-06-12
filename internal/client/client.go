@@ -68,6 +68,9 @@ func New(apiKey string, opts ...Option) *Client {
 }
 
 func checkRetryPolicy(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
 	if err != nil {
 		return true, nil
 	}
