@@ -3,6 +3,7 @@ package sdkv2
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/COG-GTM/terraform-provider-devin/internal/client"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -21,10 +22,8 @@ func resourceKnowledgeNote() *schema.Resource {
 		},
 		// CustomizeDiff validates that name is non-empty at plan time.
 		CustomizeDiff: func(ctx context.Context, diff *schema.ResourceDiff, meta interface{}) error {
-			if v, ok := diff.GetOk("name"); ok {
-				if v.(string) == "" {
-					return diff.ForceNew("name")
-				}
+			if v := diff.Get("name"); v.(string) == "" {
+				return fmt.Errorf("name must not be empty")
 			}
 			return nil
 		},
