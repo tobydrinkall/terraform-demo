@@ -2,6 +2,7 @@ package sdkv2
 
 import (
 	"context"
+	"errors"
 
 	"github.com/COG-GTM/terraform-provider-devin/internal/client"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -111,10 +112,10 @@ func resourceKnowledgeNoteCreate(ctx context.Context, d *schema.ResourceData, me
 		s := v.(string)
 		req.FolderID = &s
 	}
-	if v, ok := d.GetOk("is_enabled"); ok {
-		b := v.(bool)
-		req.IsEnabled = &b
-	}
+	// Always read is_enabled directly — GetOk cannot distinguish false from unset for booleans.
+	// Since is_enabled has Default: true, it is always present in the config.
+	isEnabled := d.Get("is_enabled").(bool)
+	req.IsEnabled = &isEnabled
 	if v, ok := d.GetOk("pinned_repo"); ok {
 		s := v.(string)
 		req.PinnedRepo = &s
@@ -134,6 +135,10 @@ func resourceKnowledgeNoteRead(ctx context.Context, d *schema.ResourceData, meta
 
 	note, err := c.GetKnowledgeNote(ctx, d.Id())
 	if err != nil {
+		if errors.Is(err, client.ErrNotFound) {
+			d.SetId("")
+			return nil
+		}
 		return diag.FromErr(err)
 	}
 
@@ -153,10 +158,8 @@ func resourceKnowledgeNoteUpdate(ctx context.Context, d *schema.ResourceData, me
 		s := v.(string)
 		req.FolderID = &s
 	}
-	if v, ok := d.GetOk("is_enabled"); ok {
-		b := v.(bool)
-		req.IsEnabled = &b
-	}
+	isEnabled := d.Get("is_enabled").(bool)
+	req.IsEnabled = &isEnabled
 	if v, ok := d.GetOk("pinned_repo"); ok {
 		s := v.(string)
 		req.PinnedRepo = &s

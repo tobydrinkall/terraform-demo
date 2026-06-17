@@ -2,6 +2,7 @@ package framework
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/COG-GTM/terraform-provider-devin/internal/client"
@@ -174,6 +175,10 @@ func (r *KnowledgeNoteResource) Read(ctx context.Context, req resource.ReadReque
 
 	note, err := r.client.GetKnowledgeNote(ctx, state.ID.ValueString())
 	if err != nil {
+		if errors.Is(err, client.ErrNotFound) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError("Error reading knowledge note", err.Error())
 		return
 	}

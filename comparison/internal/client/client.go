@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 )
+
+// ErrNotFound is returned when the API responds with 404.
+var ErrNotFound = errors.New("resource not found")
 
 // Client handles communication with the Devin API v3.
 type Client struct {
@@ -124,7 +128,7 @@ func (c *Client) doNoteRequest(ctx context.Context, method, url string, body int
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("note not found")
+		return nil, ErrNotFound
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
